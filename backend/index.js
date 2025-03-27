@@ -4,7 +4,7 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';   
 import supabase from './supabase.js';
 import appointmentRoutes from './routes/appointments.js';
-
+import chatbotRoutes from './routes/chatbot.js';
 dotenv.config();  // Load environment variables
 
 const app = express();
@@ -31,7 +31,7 @@ app.get('/', (req, res) => {
   });
 
 app.use('/api/appointments',appointmentRoutes)
-
+app.use('/api/chatbot', chatbotRoutes);
   
 // Start server
 const PORT = 5000;

@@ -8,12 +8,14 @@ import QueueStatus from './pages/QueueStatus';
 import DoctorDashboard from './pages/DoctorDashboard';
 import Login from './pages/Login';
 import DoctorLogin from './pages/DoctorLogin'
+import Chatbot from './components/Chatbot';
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Navbar />
+        <Chatbot />
         <main className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<Home />} />

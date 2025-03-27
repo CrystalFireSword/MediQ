@@ -207,9 +207,36 @@ const updateStatus = async (id: string, status: string) => {
     setShowDetailsModal(true);
   };
  
-  const sendSMS = (phoneNumber: string) => {
-    toast.success(`SMS notification would be sent to ${phoneNumber}`);
-    // In a real app, this would integrate with an SMS API
+  const sendSMS = async (phoneNumber: string) => {
+    try {
+      if (!selectedAppointment) return;
+  
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/appointments/send-whatsapp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phoneNumber: selectedAppointment.phone_number,
+            patientName: selectedAppointment.patient_name,
+            status: selectedAppointment.status
+          }),
+        }
+      );
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send WhatsApp');
+      }
+  
+      toast.success(`WhatsApp sent to ${selectedAppointment.patient_name}`);
+    } catch (error) {
+      console.error('WhatsApp send error:', error);
+      toast.error(error.message || 'Failed to send notification');
+    }
   };
 
   if (isLoading) {

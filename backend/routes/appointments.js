@@ -191,4 +191,65 @@ router.patch('/:id/status', async (req, res) => {
     });
   }
 });
+
+import twilio from 'twilio';
+
+// Initialize Twilio client (store these in environment variables)
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// Add this new endpoint
+router.post('/send-whatsapp', async (req, res) => {
+  try {
+    const { phoneNumber, patientName, status } = req.body;
+
+    // Validate input
+    if (!phoneNumber || !patientName || !status) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Format phone number (remove non-digit characters and add country code if needed)
+    const formattedNumber = phoneNumber.replace(/\D/g, '');
+    const toNumber = `whatsapp:+${formattedNumber}`;
+
+    // Create message based on status
+    let messageBody;
+    switch(status) {
+      case 'pending':
+        messageBody = `Hi ${patientName}, your appointment is pending confirmation.`;
+        break;
+      case 'in_progress':
+        messageBody = `Hi ${patientName}, the doctor is now ready to see you.`;
+        break;
+      case 'completed':
+        messageBody = `Hi ${patientName}, thank you for your visit!`;
+        break;
+      default:
+        messageBody = `Hi ${patientName}, your appointment status: ${status}`;
+    }
+
+    // Send via Twilio
+    const message = await twilioClient.messages.create({
+      body: messageBody,
+      from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`, // Your Twilio WhatsApp number
+      to: toNumber
+    });
+
+    res.json({
+      success: true,
+      message: 'WhatsApp notification sent',
+      sid: message.sid
+    });
+
+  } catch (error) {
+    console.error('WhatsApp send error:', error);
+    res.status(500).json({ 
+      error: 'Failed to send WhatsApp',
+      details: error.message 
+    });
+  }
+});
+
 export default router;
