@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, User, Phone, ChevronRight, ArrowLeft } from 'lucide-react';
@@ -8,6 +8,11 @@ const BookAppointment = () => {
   const [loading, setLoading] = useState(false);
   const [queueNumber, setQueueNumber] = useState<number | null>(null);
   const [redirectMessage, setRedirectMessage] = useState('');
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [formData, setFormData] = useState({
     patientName: '',
     phoneNumber: '',
@@ -16,54 +21,119 @@ const BookAppointment = () => {
     notes: '',
   });
 
+  useEffect(() => {
+    // Generate available dates for next 7 days
+    const generateDates = () => {
+      const dates = [];
+      const today = new Date();
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+      
+      setAvailableDates(dates);
+      setSelectedDate(dates[0]); // Set first date as default
+    };
+    
+    generateDates();
+    
+    // Time slots available for each date
+    setTimeSlots([
+      'Morning (9:00 AM - 12:00 PM)',
+      'Evening (1:00 PM - 5:00 PM)'
+    ]);
+  }, []);
+
+  useEffect(() => {
+    // Update formData.appointmentTime whenever date or time changes
+    if (selectedDate && selectedTime) {
+      const timeValue = selectedTime.includes('Morning') ? '09:00' : '13:00';
+      setFormData({
+        ...formData,
+        appointmentTime: `${selectedDate}T${timeValue}`
+      });
+    }
+  }, [selectedDate, selectedTime]);
+
+  const validatePhoneNumber = (phone: string) => {
+    // Basic phone number validation - accepts:
+    // - International format (+ followed by 7-15 digits)
+    // - Standard format (10 digits)
+    // - With or without spaces, dashes, or parentheses
+    const phoneRegex = /^(\+\d{1,3}[- ]?)?(\(\d{1,3}\)[- ]?)?[\d\- ]{7,15}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const phone = e.target.value;
+    setFormData({ ...formData, phoneNumber: phone });
+
+    // Validate only if there's input (don't show error when empty)
+    if (phone && !validatePhoneNumber(phone)) {
+      setPhoneError('Please enter a valid phone number');
+    } else {
+      setPhoneError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  
-  // Early validation
-  if (loading) return;
-  
-  setLoading(true);
-  let shouldNavigate = false;
-  let navigateId = '';
-
-  try {
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/appointments/book-appointment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to book appointment');
-    }
-
-    if (!data.id || !data.queueNumber) {
-      throw new Error('Invalid response from server.');
-    }
-
-    // Store values for navigation
-    shouldNavigate = true;
-    navigateId = data.id;
+    e.preventDefault();
     
-    // Update state
-    setQueueNumber(data.queueNumber);
-    toast.success(`Appointment booked successfully! Your queue number is ${data.queueNumber}`);
-
-  } catch (err: any) {
-    toast.error(err.message || 'An error occurred.');
-  } finally {
-    setLoading(false);
-    
-    // Navigate AFTER state updates are complete
-    if (shouldNavigate) {
-      navigate(`/queue/single/${navigateId}`);
+    // Early validation
+    if (loading) return;
+    if (!selectedDate || !selectedTime) {
+      toast.error('Please select both date and time');
+      return;
     }
-  }
-};
+    if (!validatePhoneNumber(formData.phoneNumber)) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+    
+    setLoading(true);
+    let shouldNavigate = false;
+    let navigateId = '';
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/appointments/book-appointment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to book appointment');
+      }
+
+      if (!data.id || !data.queueNumber) {
+        throw new Error('Invalid response from server.');
+      }
+
+      // Store values for navigation
+      shouldNavigate = true;
+      navigateId = data.id;
+      
+      // Update state
+      setQueueNumber(data.queueNumber);
+      toast.success(`Appointment booked successfully! Your queue number is ${data.queueNumber}`);
+
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred.');
+    } finally {
+      setLoading(false);
+      
+      // Navigate AFTER state updates are complete
+      if (shouldNavigate) {
+        navigate(`/queue/single/${navigateId}`);
+      }
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -109,11 +179,16 @@ const BookAppointment = () => {
                   type="tel"
                   id="phoneNumber"
                   value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4"
-                  placeholder="Your contact number"
+                  onChange={handlePhoneChange}
+                  className={`block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4 ${
+                    phoneError ? 'border-red-500' : ''
+                  }`}
+                  placeholder="e.g. +1 (123) 456-7890 or 1234567890"
                   required
                 />
+                {phoneError && (
+                  <p className="mt-1 text-sm text-red-600">{phoneError}</p>
+                )}
               </div>
 
               <div>
@@ -138,18 +213,48 @@ const BookAppointment = () => {
 
             <div className="space-y-6">
               <div>
-                <label htmlFor="appointmentTime" className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                  <Clock className="h-4 w-4 mr-2 text-blue-600" />
-                  Appointment Time
+                <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                  <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+                  Appointment Date
                 </label>
-                <input
-                  type="datetime-local"
-                  id="appointmentTime"
-                  value={formData.appointmentTime}
-                  onChange={(e) => setFormData({ ...formData, appointmentTime: e.target.value })}
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
                   className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4"
                   required
-                />
+                >
+                  {availableDates.map((date, index) => {
+                    const dateObj = new Date(date);
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                    const dateString = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    
+                    return (
+                      <option key={index} value={date}>
+                        {dayName}, {dateString}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                  <Clock className="h-4 w-4 mr-2 text-blue-600" />
+                  Time Slot
+                </label>
+                <select
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-3 px-4"
+                  required
+                >
+                  <option value="">Select a time slot</option>
+                  {timeSlots.map((time, index) => (
+                    <option key={index} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -190,7 +295,7 @@ const BookAppointment = () => {
         <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
           <p className="flex items-center">
             <Calendar className="h-4 w-4 mr-2" />
-            Available appointment times: Monday-Friday, 9:00 AM - 5:00 PM
+            Available appointment times: Morning (9:00 AM - 12:00 PM) and Evening (1:00 PM - 5:00 PM)
           </p>
         </div>
       </div>
