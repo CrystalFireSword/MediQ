@@ -13,20 +13,53 @@ router.post('/book-appointment', async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 🛠️ Insert data into Supabase
+    // 1️⃣ Parse the appointment time and determine time slot
+    const appointmentDate = new Date(appointmentTime);
+    const dateOnly = appointmentDate.toISOString().split('T')[0];
+    
+    // Determine time slot boundaries
+    const hours = appointmentDate.getHours();
+    const isMorningSlot = hours >= 9 && hours < 12;
+    const timeSlotStart = isMorningSlot ? '09:00:00' : '13:00:00';
+    const timeSlotEnd = isMorningSlot ? '12:00:00' : '17:00:00';
+    const timeSlotName = isMorningSlot ? 'Morning' : 'Evening';
+
+    // 2️⃣ Fetch existing appointments for the same date and time slot
+    const { data: existingAppointments, error: fetchError } = await supabase
+      .from('appointments')
+      .select('queue_number')
+      .gte('appointment_time', `${dateOnly}T${timeSlotStart}`)
+      .lt('appointment_time', `${dateOnly}T${timeSlotEnd}`)
+      .order('queue_number', { ascending: false })
+      .limit(1);
+
+    if (fetchError) {
+      console.error('Supabase Fetch Error:', fetchError.message);
+      return res.status(500).json({ message: 'Error checking existing appointments' });
+    }
+
+    // 3️⃣ Calculate new queue number
+    const lastQueueNumber = existingAppointments?.[0]?.queue_number || 0;
+    const newQueueNumber = lastQueueNumber + 1;
+
+    // 4️⃣ Insert new appointment with calculated queue number
     const { data, error } = await supabase
       .from('appointments')
       .insert([
         {
           patient_name: patientName,
           phone_number: phoneNumber,
-          appointment_time: appointmentTime,
+          appointment_time: appointmentTime, // Keep as proper timestamp
           service_type: serviceType,
-          notes: notes || '', // Default to empty string if not provided
+          notes: notes || '',
           status: 'pending',
+          queue_number: newQueueNumber,
+          // time_slot: timeSlotName, // Store as text if you want to display it
+          appointment_time: `${dateOnly}T${timeSlotStart}`, // Store slot boundaries if needed
+          //time_slot_end: `${dateOnly}T${timeSlotEnd}`
         },
       ])
-      .select('id, queue_number, patient_id');
+      .select('id, queue_number, patient_id, appointment_time');
 
     // ❌ Handle errors
     if (error) {
@@ -37,9 +70,10 @@ router.post('/book-appointment', async (req, res) => {
     // ✅ Success Response
     res.json({
       message: 'Appointment booked successfully!',
-      id: data[0].id, // Return appointment ID
-      queueNumber: data[0].queue_number, // Return queue number
-      patientId: data[0].patient_id, // Return patient ID if needed
+      id: data[0].id,
+      queueNumber: data[0].queue_number,
+      patientId: data[0].patient_id,
+      timeSlot: data[0].appointment_time
     });
 
   } catch (err) {
