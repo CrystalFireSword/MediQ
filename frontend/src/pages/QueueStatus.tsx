@@ -19,6 +19,7 @@ const QueueStatus = () => {
         }
 
         setAppointment(data); // ✅ Store entire appointment, including queueNumber
+        console.log(data)
       } catch (error) {
         console.error('Error fetching appointment:', error);
       }
@@ -69,7 +70,24 @@ const QueueStatus = () => {
             <span className="text-gray-600">Patient Name</span>
             <span className="font-medium">{appointment.patient_name}</span>
           </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-600">Average Waiting Time</span>
+            <span className="font-medium">5 mins</span>
+          </div>
+
+          <div className="flex justify-between">
+          <span className="text-gray-600">Expected Appointment Time</span>
+          <span className="font-medium">
+  {new Date(new Date(appointment.appointment_time).getTime() + appointment.queue_number * 5 * 60000).toLocaleTimeString()}
+</span>
+
+
+
+          </div>
         </div>
+
+        
 
         {appointment.status === 'waiting' && (
           <div className="flex items-center justify-center p-4 bg-yellow-50 rounded-lg">

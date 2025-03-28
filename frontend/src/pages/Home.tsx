@@ -42,12 +42,12 @@ const Home = () => {
         }
   
         const { appointments, stats } = await response.json();
+
   
         setAppointments(appointments);
         setFilteredAppointments(appointments); // No need for frontend filtering now
       } catch (error) {
         console.error("Error fetching appointments:", error);
-        toast.error("Failed to load appointments");
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -84,34 +84,37 @@ const Home = () => {
         </Link>
       </div>
 
-       {/* Now Serving */}
-       {filteredAppointments.filter(app => app.status === 'in_progress').length > 0 && (
-        <div className="mb-8 bg-blue-50 rounded-xl p-4 border border-blue-200">
-          <h2 className="text-lg font-semibold text-blue-800 mb-2 flex items-center">
-            <Activity className="h-5 w-5 mr-2" />
-            Now Serving
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAppointments
-              .filter(app => app.status === 'in_progress')
-              .map(app => (
-                <div 
-                  key={app.id} 
-                  className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500 flex justify-between items-center cursor-pointer hover:shadow-lg transition-shadow"
-                  
-                >
-                  <div>
-                    <div className="flex items-center">
-                      <span className="text-xl font-bold text-blue-600 mr-2">#{app.queue_number}</span>
-                      <span className="font-medium">{app.patient_name}</span>
-                    </div>
-                    <p className="text-sm text-gray-500">{formatDateTime(app.appointment_time)}</p>
-                  </div>
-                </div>
-              ))}
+     {/* Now Serving */}
+<div className="mb-8 bg-blue-50 rounded-xl p-4 border border-blue-200">
+  <h2 className="text-lg font-semibold text-blue-800 mb-2 flex items-center">
+    <Activity className="h-5 w-5 mr-2" />
+    Now Serving
+  </h2>
+
+  {filteredAppointments.filter(app => app.status === 'in_progress').length > 0 ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredAppointments
+        .filter(app => app.status === 'in_progress')
+        .map(app => (
+          <div 
+            key={app.id} 
+            className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500 flex justify-between items-center cursor-pointer hover:shadow-lg transition-shadow"
+          >
+            <div>
+              <div className="flex items-center">
+                <span className="text-xl font-bold text-blue-600 mr-2">#{app.queue_number}</span>
+                <span className="font-medium">{app.patient_name}</span>
+              </div>
+              <p className="text-sm text-gray-500">{formatDateTime(app.appointment_time)}</p>
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+    </div>
+  ) : (
+    <p className="text-center text-gray-600 py-4">Currently, no one is being served.</p>
+  )}
+</div>
+
 
       {/* Features Section with Enhanced Cards */}
       <div className="mb-20">
@@ -180,6 +183,7 @@ const Home = () => {
           Get Started Now
         </Link>
       </div>
+
     </div>
   );
 };
