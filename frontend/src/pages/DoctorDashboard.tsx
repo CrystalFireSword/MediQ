@@ -75,32 +75,39 @@ const DoctorDashboard = () => {
   }, [appointments, searchTerm, statusFilter]);
 
   // Update the fetchAppointments function in DoctorDashboard.tsx
-const fetchAppointments = async () => {
-  setIsRefreshing(true);
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_BACKEND_URL}/api/appointments/list?status=${statusFilter}&search=${searchTerm}`
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch appointments');
+  const fetchAppointments = async () => {
+    setIsRefreshing(true);
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchTerm.trim()) params.append('search', searchTerm.trim());
+  
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/appointments/list?${params.toString()}`
+      );
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointments');
+      }
+  
+      const { appointments, stats } = await response.json();
+  
+      setAppointments(appointments);
+      setFilteredAppointments(appointments);
+      setStats(stats);
+      
+    } catch (error) {
+      // Only show error if it's not a search operation
+      if (!searchTerm.trim()) {
+        console.error('Error fetching appointments:', error);
+        toast.error('Failed to load appointments');
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-
-    const { appointments, stats } = await response.json();
-
-    setAppointments(appointments);
-    setFilteredAppointments(appointments); // No need for frontend filtering now
-    setStats(stats);
-    
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-    toast.error('Failed to load appointments');
-  } finally {
-    setIsLoading(false);
-    setIsRefreshing(false);
-  }
-};
-
+  };
 // Remove the useEffect for filtering since it's now handled by the backend
 // Keep only the realtime subscription useEffect
 
