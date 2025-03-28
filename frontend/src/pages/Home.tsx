@@ -1,8 +1,70 @@
-import React from 'react';
+import { React,useEffect, useState } from "react";
 import { Link } from 'react-router-dom';
 import { Clock, Users, Bell, Activity, ChevronRight } from 'lucide-react';
+import toast from "react-hot-toast";
+import { format } from 'date-fns';
 
 const Home = () => {
+
+  type Appointment = {
+    id: string;
+    patient_name: string;
+    phone_number: string;
+    appointment_time: string;
+    queue_number: number;
+    status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+    service_type?: string;
+    notes?: string;
+  };
+
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setIsRefreshing(true);
+      setIsLoading(true); // Ensure loading state is set at the beginning
+  
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/api/appointments/list?status=in_progress`
+        );
+  
+        if (!response.ok) {
+          throw new Error("Failed to fetch appointments");
+        }
+  
+        const { appointments, stats } = await response.json();
+  
+        setAppointments(appointments);
+        setFilteredAppointments(appointments); // No need for frontend filtering now
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        toast.error("Failed to load appointments");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    };
+  
+    fetchAppointments(); // Call the async function
+  }); // Dependency array
+
+  const formatDateTime = (dateTimeStr: string) => {
+    try {
+      return format(new Date(dateTimeStr), 'MMM d, yyyy h:mm a');
+    } catch (e) {
+      return dateTimeStr;
+    }
+  };
+  
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       {/* Hero Section with Gradient Background */}
@@ -21,6 +83,35 @@ const Home = () => {
           <ChevronRight className="ml-2 h-5 w-5 transform transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
+
+       {/* Now Serving */}
+       {filteredAppointments.filter(app => app.status === 'in_progress').length > 0 && (
+        <div className="mb-8 bg-blue-50 rounded-xl p-4 border border-blue-200">
+          <h2 className="text-lg font-semibold text-blue-800 mb-2 flex items-center">
+            <Activity className="h-5 w-5 mr-2" />
+            Now Serving
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAppointments
+              .filter(app => app.status === 'in_progress')
+              .map(app => (
+                <div 
+                  key={app.id} 
+                  className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500 flex justify-between items-center cursor-pointer hover:shadow-lg transition-shadow"
+                  
+                >
+                  <div>
+                    <div className="flex items-center">
+                      <span className="text-xl font-bold text-blue-600 mr-2">#{app.queue_number}</span>
+                      <span className="font-medium">{app.patient_name}</span>
+                    </div>
+                    <p className="text-sm text-gray-500">{formatDateTime(app.appointment_time)}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* Features Section with Enhanced Cards */}
       <div className="mb-20">

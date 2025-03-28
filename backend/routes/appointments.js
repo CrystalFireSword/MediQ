@@ -111,11 +111,8 @@ router.get('/single/:id', async (req, res) => {
 
 // appointments.js
 router.get('/list', async (req, res) => {
-  console.log('Fetching all patients...'); // Add logging
   try {
     const { status, search } = req.query;
-    console.log(status, search)
-    console.log('Query params:', { status, search }); // Log incoming params
 
     let query = supabase
       .from('appointments')
@@ -135,11 +132,8 @@ router.get('/list', async (req, res) => {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Supabase error:', error);
       throw error;
     }
-
-    console.log(`Found ${data.length} appointments`); // Log results
 
     const stats = {
       pending: data.filter(app => app.status === 'pending').length,
