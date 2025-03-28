@@ -58,21 +58,20 @@ const BookAppointment = () => {
   }, [selectedDate, selectedTime]);
 
   const validatePhoneNumber = (phone: string) => {
-    // Basic phone number validation - accepts:
-    // - International format (+ followed by 7-15 digits)
-    // - Standard format (10 digits)
-    // - With or without spaces, dashes, or parentheses
-    const phoneRegex = /^(\+\d{1,3}[- ]?)?(\(\d{1,3}\)[- ]?)?[\d\- ]{7,15}$/;
-    return phoneRegex.test(phone);
+    // Remove all non-digit characters
+    const digitsOnly = phone.replace(/\D/g, '');
+    // Check if exactly 10 digits
+    return digitsOnly.length === 10;
   };
-
+  
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const phone = e.target.value;
     setFormData({ ...formData, phoneNumber: phone });
-
-    // Validate only if there's input (don't show error when empty)
-    if (phone && !validatePhoneNumber(phone)) {
-      setPhoneError('Please enter a valid phone number');
+  
+    // Validate only if there's input
+    if (phone) {
+      const isValid = validatePhoneNumber(phone);
+      setPhoneError(isValid ? '' : 'Please enter exactly 10 digits (numbers only)');
     } else {
       setPhoneError('');
     }
